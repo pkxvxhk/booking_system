@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Кімнати/місця{% endblock %}
+{% block content %}
+<h1>Кімнати/місця</h1>
+<form method="get">
+    {{ form.as_p }}
+    <button type="submit">Знайти</button>
+    <a href="{% url 'booking:room_list' %}">Скинути</a>
+</form>
+{% if period %}
+    <p>Вільні з {{ period.0|date:"d.m.Y H:i" }} до {{ period.1|date:"d.m.Y H:i" }}:</p>
+{% endif %}
+<table border="1">
+    <thead>
+    <tr>
+        <th>Назва</th>
+        <th>Тип</th>
+        <th>Вмістимість</th>
+        <th>Ціна за годину</th>
+        <th>Особливості</th>
+        <th></th>
+    </tr>
+    </thead>
+    <tbody>
+    {% for room in rooms %}
+        <tr>
+            <td><a href="{{ room.get_absolute_url }}">{{ room.name }}</a></td>
+            <td>{{ room.room_type }}</td>
+            <td>{{ room.capacity }}</td>
+            <td>{{ room.price_per_hour }}</td>
+            <td>{{ room.features.all|join:", " }}</td>
+            <td><a href="{% url 'booking:booking_create' %}?room={{ room.pk }}">Забронювати</a></td>
+        </tr>
+    {% empty %}
+        <tr><td colspan="6">Нічого не знайдено.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

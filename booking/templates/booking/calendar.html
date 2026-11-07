@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Календар доступності{% endblock %}
+{% block head %}
+<style>
+    .free { background: #c8f7c5; }
+    .partial { background: #ffe9a8; }
+    .busy { background: #f7c5c5; }
+</style>
+{% endblock %}
+{% block content %}
+<h1>Календар доступності</h1>
+<form method="get">
+    {{ form.as_p }}
+    <button type="submit">Показати</button>
+</form>
+<p>
+    <a href="?{{ prev_query }}">&larr; Попередній місяць</a>
+    | {{ month_start|date:"F Y" }} |
+    <a href="?{{ next_query }}">Наступний місяць &rarr;</a>
+</p>
+<p>Позначення: <span class="free">вільно</span> <span class="partial">частково зайнято</span> <span class="busy">зайнято</span></p>
+<table border="1">
+    <thead>
+    <tr>
+        <th>Кімната/місце</th>
+        {% for day in calendar.days %}<th>{{ day|date:"d" }}</th>{% endfor %}
+    </tr>
+    </thead>
+    <tbody>
+    {% for row in calendar.rows %}
+        <tr>
+            <td><a href="{{ row.room.get_absolute_url }}">{{ row.room.name }}</a></td>
+            {% for cell in row.cells %}
+                <td class="{{ cell.status }}"
+                    title="{% for s, e in cell.busy %}{{ s|date:'H:i' }}-{{ e|date:'H:i' }} {% empty %}вільно{% endfor %}">
+                    {% if cell.status == "free" %}
+                        <a href="{% url 'booking:booking_create' %}?room={{ row.room.pk }}">+</a>
+                    {% elif cell.status == "partial" %}~{% else %}x{% endif %}
+                </td>
+            {% endfor %}
+        </tr>
+    {% empty %}
+        <tr><td colspan="{{ calendar.days|length|add:1 }}">Немає кімнат/місць.</td></tr>
+    {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% block title %}Бронювання #{{ booking.pk }}{% endblock %}
+{% block content %}
+<h1>Бронювання #{{ booking.pk }}</h1>
+<p>Кімната/місце: <a href="{{ booking.room.get_absolute_url }}">{{ booking.room }}</a></p>
+<p>Ім'я: {{ booking.name }}</p>
+<p>E-mail: {{ booking.email }}</p>
+<p>Початок: {{ booking.start|date:"d.m.Y H:i" }}</p>
+<p>Завершення: {{ booking.end|date:"d.m.Y H:i" }}</p>
+<p>Кількість гостей: {{ booking.guests }}</p>
+<p>Вартість: {{ booking.total_price }}</p>
+<p>Статус: {{ booking.get_status_display }}</p>
+<p>Підтверджено через e-mail: {{ booking.email_confirmed|yesno:"так,ні" }}</p>
+{% if booking.status != "cancelled" %}
+    <form method="post" action="{% url 'booking:booking_cancel' booking.confirmation_token %}">
+        {% csrf_token %}
+        <button type="submit">Скасувати бронювання</button>
+    </form>
+{% endif %}
+{% endblock %}

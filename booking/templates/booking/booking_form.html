@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% block title %}Бронювання{% endblock %}
+{% block content %}
+<h1>Нове бронювання</h1>
+<form method="post" id="booking-form">
+    {% csrf_token %}
+    {{ form.non_field_errors }}
+    {{ form.as_p }}
+    <p id="availability-status"></p>
+    <button type="submit">Забронювати</button>
+</form>
+{% endblock %}
+{% block scripts %}
+<script>
+(function () {
+    const apiUrl = "{% url 'booking:api_availability' %}";
+    const roomField = document.getElementById("id_room");
+    const startField = document.getElementById("id_start");
+    const endField = document.getElementById("id_end");
+    const guestsField = document.getElementById("id_guests");
+    const statusEl = document.getElementById("availability-status");
+    let controller = null;
+
+    function setStatus(text) {
+        statusEl.textContent = text;
+    }
+
+    async function checkAvailability() {
+        const room = roomField.value;
+        const start = startField.value;
+        const end = endField.value;
+        if (!room || !start || !end) {
+            setStatus("");
+            return;
+        }
+        if (end <= start) {
+            setStatus("Дата завершення має бути пізніше за дату початку.");
+            return;
+        }
+        if (controller) {
+            controller.abort();
+        }
+        controller = new AbortController();
+        const params = new URLSearchParams({room: room, start: start, end: end});
+        try {
+            const response = await fetch(apiUrl + "?" + params.toString(), {signal: controller.signal});
+            const data = await response.json();
+            if (!response.ok) {
+                setStatus(data.error || "Помилка перевірки доступності.");
+                return;
+            }
+            const parts = [];
+            if (data.available) {
+                parts.push("Період вільний. Вартість: " + data.price + ".");
+            } else {
+                const busy = data.conflicts.map(function (c) {
+                    return new Date(c.start).toLocaleString() + " - " + new Date(c.end).toLocaleString();
+                }).join("; ");
+                parts.push("Період зайнятий: " + busy + ".");
+            }
+            const guests = parseInt(guestsField.value, 10);
+            if (guests && guests > data.capacity) {
+                parts.push("Максимальна вмістимість: " + data.capacity + ".");
+            }
+            setStatus(parts.join(" "));
+        } catch (err) {
+            if (err.name !== "AbortError") {
+                setStatus("Помилка перевірки доступності.");
+            }
+        }
+    }
+
+    [roomField, startField, endField, guestsField].forEach(function (field) {
+        field.addEventListener("change", checkAvailability);
+        field.addEventListener("input", checkAvailability);
+    });
+    checkAvailability();
+})();
+</script>
+{% endblock %}
