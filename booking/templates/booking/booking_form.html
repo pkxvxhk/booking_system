@@ -1,14 +1,31 @@
 {% extends "base.html" %}
 {% block title %}Бронювання{% endblock %}
 {% block content %}
-<h1>Нове бронювання</h1>
-<form method="post" id="booking-form">
-    {% csrf_token %}
-    {{ form.non_field_errors }}
-    {{ form.as_p }}
-    <p id="availability-status"></p>
-    <button type="submit">Забронювати</button>
-</form>
+<div class="row justify-content-center">
+    <div class="col-lg-7">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h3 mb-4">Нове бронювання</h1>
+                <form method="post" id="booking-form">
+                    {% csrf_token %}
+                    {% include "includes/non_field_errors.html" %}
+                    <div class="row">
+                        <div class="col-md-6">{% include "includes/form_field.html" with field=form.name %}</div>
+                        <div class="col-md-6">{% include "includes/form_field.html" with field=form.email %}</div>
+                    </div>
+                    {% include "includes/form_field.html" with field=form.room %}
+                    <div class="row">
+                        <div class="col-md-6">{% include "includes/form_field.html" with field=form.start %}</div>
+                        <div class="col-md-6">{% include "includes/form_field.html" with field=form.end %}</div>
+                    </div>
+                    {% include "includes/form_field.html" with field=form.guests %}
+                    <div id="availability-status" class="alert d-none" role="status"></div>
+                    <button type="submit" class="btn btn-primary w-100">Забронювати</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 {% block scripts %}
 <script>
@@ -21,8 +38,14 @@
     const statusEl = document.getElementById("availability-status");
     let controller = null;
 
-    function setStatus(text) {
+    function setStatus(text, kind) {
         statusEl.textContent = text;
+        statusEl.className = "alert";
+        if (!text) {
+            statusEl.classList.add("d-none");
+            return;
+        }
+        statusEl.classList.add("alert-" + (kind || "info"));
     }
 
     async function checkAvailability() {
@@ -34,7 +57,7 @@
             return;
         }
         if (end <= start) {
-            setStatus("Дата завершення має бути пізніше за дату початку.");
+            setStatus("Дата завершення має бути пізніше за дату початку.", "danger");
             return;
         }
         if (controller) {
@@ -46,13 +69,15 @@
             const response = await fetch(apiUrl + "?" + params.toString(), {signal: controller.signal});
             const data = await response.json();
             if (!response.ok) {
-                setStatus(data.error || "Помилка перевірки доступності.");
+                setStatus(data.error || "Помилка перевірки доступності.", "danger");
                 return;
             }
             const parts = [];
+            let kind = "success";
             if (data.available) {
                 parts.push("Період вільний. Вартість: " + data.price + ".");
             } else {
+                kind = "danger";
                 const busy = data.conflicts.map(function (c) {
                     return new Date(c.start).toLocaleString() + " - " + new Date(c.end).toLocaleString();
                 }).join("; ");
@@ -60,12 +85,13 @@
             }
             const guests = parseInt(guestsField.value, 10);
             if (guests && guests > data.capacity) {
+                kind = kind === "success" ? "warning" : kind;
                 parts.push("Максимальна вмістимість: " + data.capacity + ".");
             }
-            setStatus(parts.join(" "));
+            setStatus(parts.join(" "), kind);
         } catch (err) {
             if (err.name !== "AbortError") {
-                setStatus("Помилка перевірки доступності.");
+                setStatus("Помилка перевірки доступності.", "danger");
             }
         }
     }

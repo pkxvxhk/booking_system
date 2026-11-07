@@ -1,12 +1,25 @@
 {% extends "base.html" %}
 {% block title %}Вхід{% endblock %}
 {% block content %}
-<h1>Вхід</h1>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <input type="hidden" name="next" value="{{ next }}">
-    <button type="submit">Увійти</button>
-</form>
-<p><a href="{% url 'booking:register' %}">Немає акаунта? Зареєструватися</a></p>
+<div class="row justify-content-center">
+    <div class="col-md-6 col-lg-5">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h3 mb-4">Вхід</h1>
+                <form method="post">
+                    {% csrf_token %}
+                    {% include "includes/non_field_errors.html" %}
+                    {% for field in form %}
+                        {% include "includes/form_field.html" with field=field %}
+                    {% endfor %}
+                    <input type="hidden" name="next" value="{{ next }}">
+                    <button type="submit" class="btn btn-primary w-100">Увійти</button>
+                </form>
+                <p class="text-center mt-3 mb-0">
+                    <a href="{% url 'booking:register' %}">Немає акаунта? Зареєструватися</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

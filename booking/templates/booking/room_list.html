@@ -1,39 +1,65 @@
 {% extends "base.html" %}
 {% block title %}Кімнати/місця{% endblock %}
 {% block content %}
-<h1>Кімнати/місця</h1>
-<form method="get">
-    {{ form.as_p }}
-    <button type="submit">Знайти</button>
-    <a href="{% url 'booking:room_list' %}">Скинути</a>
-</form>
+<h1 class="h3 mb-4">Кімнати/місця</h1>
+
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            {% include "includes/non_field_errors.html" %}
+            {% for field in form %}
+                <div class="col-sm-6 col-lg">
+                    {% include "includes/form_field.html" with field=field compact=True %}
+                </div>
+            {% endfor %}
+            <div class="col-12 col-lg-auto d-flex gap-2">
+                <button type="submit" class="btn btn-primary">Знайти</button>
+                <a class="btn btn-outline-secondary" href="{% url 'booking:room_list' %}">Скинути</a>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% if period %}
-    <p>Вільні з {{ period.0|date:"d.m.Y H:i" }} до {{ period.1|date:"d.m.Y H:i" }}:</p>
+    <div class="alert alert-info">
+        Вільні з {{ period.0|date:"d.m.Y H:i" }} до {{ period.1|date:"d.m.Y H:i" }}
+    </div>
 {% endif %}
-<table border="1">
-    <thead>
-    <tr>
-        <th>Назва</th>
-        <th>Тип</th>
-        <th>Вмістимість</th>
-        <th>Ціна за годину</th>
-        <th>Особливості</th>
-        <th></th>
-    </tr>
-    </thead>
-    <tbody>
-    {% for room in rooms %}
-        <tr>
-            <td><a href="{{ room.get_absolute_url }}">{{ room.name }}</a></td>
-            <td>{{ room.room_type }}</td>
-            <td>{{ room.capacity }}</td>
-            <td>{{ room.price_per_hour }}</td>
-            <td>{{ room.features.all|join:", " }}</td>
-            <td><a href="{% url 'booking:booking_create' %}?room={{ room.pk }}">Забронювати</a></td>
-        </tr>
-    {% empty %}
-        <tr><td colspan="6">Нічого не знайдено.</td></tr>
-    {% endfor %}
-    </tbody>
-</table>
+
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+            <tr>
+                <th>Назва</th>
+                <th>Тип</th>
+                <th>Вмістимість</th>
+                <th>Ціна за годину</th>
+                <th>Особливості</th>
+                <th></th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for room in rooms %}
+                <tr>
+                    <td><a class="fw-semibold" href="{{ room.get_absolute_url }}">{{ room.name }}</a></td>
+                    <td>{{ room.room_type }}</td>
+                    <td>{{ room.capacity }}</td>
+                    <td>{{ room.price_per_hour }}</td>
+                    <td>
+                        {% for feature in room.features.all %}
+                            <span class="badge text-bg-light border">{{ feature }}</span>
+                        {% endfor %}
+                    </td>
+                    <td class="text-end">
+                        <a class="btn btn-sm btn-primary" href="{% url 'booking:booking_create' %}?room={{ room.pk }}">Забронювати</a>
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="6" class="text-center text-body-secondary py-4">Нічого не знайдено.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}

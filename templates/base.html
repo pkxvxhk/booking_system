@@ -1,43 +1,81 @@
-{% load static %}
+{% load static bootstrap_tags %}
 <!DOCTYPE html>
 <html lang="uk">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{% block title %}Система бронювання{% endblock %}</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css">
     <link rel="stylesheet" href="{% static 'css/style.css' %}">
     {% block head %}{% endblock %}
 </head>
-<body>
-<header>
-    <nav>
-        <a href="{% url 'booking:room_list' %}">Кімнати/місця</a> |
-        <a href="{% url 'booking:calendar' %}">Календар доступності</a> |
-        <a href="{% url 'booking:booking_create' %}">Забронювати</a> |
-        {% if user.is_authenticated %}
-            <a href="{% url 'booking:my_bookings' %}">Мої бронювання</a> |
-            {% if user.is_staff %}<a href="{% url 'admin:index' %}">Адмін-панель</a> |{% endif %}
-            <span>{{ user.username }}</span>
-            <form action="{% url 'logout' %}" method="post">                {% csrf_token %}
-                <button type="submit">Вийти</button>
-            </form>
-        {% else %}
-            <a href="{% url 'login' %}">Увійти</a> |
-            <a href="{% url 'booking:register' %}">Реєстрація</a>
-        {% endif %}
-    </nav>
-</header>
-<hr>
-{% if messages %}
-    <ul>
-        {% for message in messages %}
-            <li class="{{ message.tags }}">{{ message }}</li>
-        {% endfor %}
-    </ul>
-{% endif %}
-<main>
+<body class="bg-body-tertiary">
+{% with url_name=request.resolver_match.url_name %}
+<nav class="navbar navbar-expand-lg bg-body border-bottom">
+    <div class="container">
+        <a class="navbar-brand fw-semibold" href="{% url 'booking:room_list' %}">Бронювання</a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#mainNav"
+                aria-controls="mainNav" aria-expanded="false" aria-label="Меню">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="mainNav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item">
+                    <a class="nav-link{% if url_name == 'room_list' or url_name == 'room_detail' %} active{% endif %}"
+                       href="{% url 'booking:room_list' %}">Кімнати/місця</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link{% if url_name == 'calendar' %} active{% endif %}"
+                       href="{% url 'booking:calendar' %}">Календар доступності</a>
+                </li>
+                {% if user.is_authenticated %}
+                    <li class="nav-item">
+                        <a class="nav-link{% if url_name == 'my_bookings' %} active{% endif %}"
+                           href="{% url 'booking:my_bookings' %}">Мої бронювання</a>
+                    </li>
+                {% endif %}
+            </ul>
+            <div class="d-flex flex-column flex-lg-row align-items-lg-center gap-2">
+                <a class="btn btn-primary" href="{% url 'booking:booking_create' %}">Забронювати</a>
+                {% if user.is_authenticated %}
+                    <div class="dropdown">
+                        <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
+                                aria-expanded="false">{{ user.username }}</button>
+                        <ul class="dropdown-menu dropdown-menu-lg-end">
+                            <li><a class="dropdown-item" href="{% url 'booking:my_bookings' %}">Мої бронювання</a></li>
+                            {% if user.is_staff %}
+                                <li><a class="dropdown-item" href="{% url 'admin:index' %}">Адмін-панель</a></li>
+                            {% endif %}
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <form action="{% url 'logout' %}" method="post">
+                                    {% csrf_token %}
+                                    <button type="submit" class="dropdown-item">Вийти</button>
+                                </form>
+                            </li>
+                        </ul>
+                    </div>
+                {% else %}
+                    <a class="btn btn-outline-secondary" href="{% url 'login' %}">Увійти</a>
+                    <a class="btn btn-link" href="{% url 'booking:register' %}">Реєстрація</a>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</nav>
+{% endwith %}
+
+<main class="container py-4">
+    {% for message in messages %}
+        <div class="alert alert-{{ message.tags|alert_class }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Закрити"></button>
+        </div>
+    {% endfor %}
     {% block content %}{% endblock %}
 </main>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"></script>
 {% block scripts %}{% endblock %}
 </body>
 </html>

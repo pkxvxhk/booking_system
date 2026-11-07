@@ -1,0 +1,11 @@
+{% load bootstrap_tags %}
+<div class="{% if not compact %}mb-3{% endif %}">
+    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+    {{ field|bs_widget }}
+    {% for error in field.errors %}
+        <div class="invalid-feedback">{{ error }}</div>
+    {% endfor %}
+    {% if field.help_text and not compact %}
+        <div class="form-text">{{ field.help_text|safe }}</div>
+    {% endif %}
+</div>

@@ -1,10 +1,24 @@
 {% extends "base.html" %}
 {% block title %}Реєстрація{% endblock %}
 {% block content %}
-<h1>Реєстрація</h1>
-<form method="post">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Зареєструватися</button>
-</form>
+<div class="row justify-content-center">
+    <div class="col-md-7 col-lg-6">
+        <div class="card shadow-sm">
+            <div class="card-body p-4">
+                <h1 class="h3 mb-4">Реєстрація</h1>
+                <form method="post">
+                    {% csrf_token %}
+                    {% include "includes/non_field_errors.html" %}
+                    {% for field in form %}
+                        {% include "includes/form_field.html" with field=field %}
+                    {% endfor %}
+                    <button type="submit" class="btn btn-primary w-100">Зареєструватися</button>
+                </form>
+                <p class="text-center mt-3 mb-0">
+                    <a href="{% url 'login' %}">Вже є акаунт? Увійти</a>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}

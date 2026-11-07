@@ -1,33 +1,43 @@
 {% extends "base.html" %}
 {% block title %}Мої бронювання{% endblock %}
 {% block content %}
-<h1>Мої бронювання</h1>
-<table border="1">
-    <thead>
-    <tr>
-        <th>#</th>
-        <th>Кімната/місце</th>
-        <th>Початок</th>
-        <th>Завершення</th>
-        <th>Вартість</th>
-        <th>Статус</th>
-        <th>E-mail</th>
-    </tr>
-    </thead>
-    <tbody>
-    {% for b in bookings %}
-        <tr>
-            <td><a href="{{ b.get_absolute_url }}">{{ b.pk }}</a></td>
-            <td>{{ b.room }}</td>
-            <td>{{ b.start|date:"d.m.Y H:i" }}</td>
-            <td>{{ b.end|date:"d.m.Y H:i" }}</td>
-            <td>{{ b.total_price }}</td>
-            <td>{{ b.get_status_display }}</td>
-            <td>{{ b.email_confirmed|yesno:"підтверджено,не підтверджено" }}</td>
-        </tr>
-    {% empty %}
-        <tr><td colspan="7">Бронювань немає.</td></tr>
-    {% endfor %}
-    </tbody>
-</table>
+<h1 class="h3 mb-4">Мої бронювання</h1>
+<div class="card shadow-sm">
+    <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+            <tr>
+                <th>#</th>
+                <th>Кімната/місце</th>
+                <th>Початок</th>
+                <th>Завершення</th>
+                <th>Вартість</th>
+                <th>Статус</th>
+                <th>E-mail</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for b in bookings %}
+                <tr>
+                    <td><a href="{{ b.get_absolute_url }}">{{ b.pk }}</a></td>
+                    <td>{{ b.room }}</td>
+                    <td>{{ b.start|date:"d.m.Y H:i" }}</td>
+                    <td>{{ b.end|date:"d.m.Y H:i" }}</td>
+                    <td>{{ b.total_price }}</td>
+                    <td>{% include "includes/status_badge.html" with booking=b %}</td>
+                    <td>
+                        {% if b.email_confirmed %}
+                            <span class="badge text-bg-success">підтверджено</span>
+                        {% else %}
+                            <span class="badge text-bg-secondary">не підтверджено</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% empty %}
+                <tr><td colspan="7" class="text-center text-body-secondary py-4">Бронювань немає.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
 {% endblock %}
