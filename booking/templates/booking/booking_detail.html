@@ -32,14 +32,31 @@
                             <span class="badge text-bg-secondary">ні</span>
                         {% endif %}
                     </dd>
+                    <dt class="col-sm-5">Оплата</dt>
+                    <dd class="col-sm-7">
+                        {% if booking.is_paid %}
+                            <span class="badge text-bg-success">оплачено</span>
+                            <span class="text-body-secondary small ms-1">{{ booking.paid_at|date:"d.m.Y H:i" }}</span>
+                        {% else %}
+                            <span class="badge text-bg-warning">не оплачено</span>
+                        {% endif %}
+                    </dd>
                 </dl>
             </div>
-            {% if booking.status != "cancelled" %}
-                <div class="card-footer bg-body text-end">
-                    <form method="post" action="{% url 'booking:booking_cancel' booking.confirmation_token %}">
-                        {% csrf_token %}
-                        <button type="submit" class="btn btn-outline-danger">Скасувати бронювання</button>
-                    </form>
+            {% if can_pay or booking.status != "cancelled" %}
+                <div class="card-footer bg-body d-flex flex-wrap justify-content-end gap-2">
+                    {% if booking.status != "cancelled" %}
+                        <form method="post" action="{% url 'booking:booking_cancel' booking.confirmation_token %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-outline-danger">Скасувати бронювання</button>
+                        </form>
+                    {% endif %}
+                    {% if can_pay %}
+                        <form method="post" action="{% url 'booking:booking_pay' booking.confirmation_token %}">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-success">Оплатити {{ booking.total_price }}</button>
+                        </form>
+                    {% endif %}
                 </div>
             {% endif %}
         </div>

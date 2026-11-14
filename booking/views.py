@@ -1,12 +1,15 @@
 from django.contrib import messages
-from django.contrib.auth import login
+from django.conf import settings
+from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
+from django.contrib.auth.forms import AuthenticationForm
 from django.core.exceptions import ValidationError
 from django.db.models import Exists, OuterRef
-from django.http import JsonResponse
+from django.http import Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_GET, require_POST
 
 from . import services
@@ -73,11 +76,12 @@ def availability_calendar(request):
     )
 
 
+@login_required
 def booking_create(request):
-    initial = {}
-    if request.user.is_authenticated:
-        initial["name"] = request.user.get_full_name() or request.user.username
-        initial["email"] = request.user.email
+    initial = {
+        "name": request.user.get_full_name() or request.user.username,
+        "email": request.user.email,
+    }
     room_id = request.GET.get("room")
     if room_id and room_id.isdigit():
         initial["room"] = room_id
@@ -109,9 +113,18 @@ def booking_create(request):
     return render(request, "booking/booking_form.html", {"form": form})
 
 
-def booking_detail(request, token):
+def _get_own_booking(request, token):
     booking = get_object_or_404(Booking.objects.select_related("room__room_type"), confirmation_token=token)
-    return render(request, "booking/booking_detail.html", {"booking": booking})
+    if booking.user_id != request.user.id and not request.user.is_staff:
+        raise Http404
+    return booking
+
+
+@login_required
+def booking_detail(request, token):
+    booking = _get_own_booking(request, token)
+    can_pay = booking.user_id == request.user.id and booking.can_be_paid
+    return render(request, "booking/booking_detail.html", {"booking": booking, "can_pay": can_pay})
 
 
 def booking_confirm_email(request, token):
@@ -127,9 +140,10 @@ def booking_confirm_email(request, token):
     return redirect("booking:booking_detail", token=booking.confirmation_token)
 
 
+@login_required
 @require_POST
 def booking_cancel(request, token):
-    booking = get_object_or_404(Booking, confirmation_token=token)
+    booking = _get_own_booking(request, token)
     if booking.status == Booking.STATUS_CANCELLED:
         messages.info(request, "Бронювання вже скасовано.")
     elif booking.end <= timezone.now():
@@ -141,24 +155,86 @@ def booking_cancel(request, token):
 
 
 @login_required
+@require_POST
+def booking_pay(request, token):
+    booking = _get_own_booking(request, token)
+    if booking.user_id != request.user.id:
+        raise Http404
+    try:
+        services.pay_booking(booking, request=request)
+    except ValidationError as exc:
+        messages.error(request, " ".join(exc.messages))
+    else:
+        messages.success(request, "Оплату прийнято. Бронювання з'явилося в активних.")
+    return redirect("booking:booking_detail", token=booking.confirmation_token)
+
+
+@login_required
+def active_bookings(request):
+    bookings = (
+        Booking.objects.paid_active()
+        .filter(user=request.user)
+        .select_related("room__room_type")
+        .order_by("start")
+    )
+    return render(request, "booking/active_bookings.html", {"bookings": bookings, "now": timezone.now()})
+
+
+@login_required
 def my_bookings(request):
     bookings = Booking.objects.filter(user=request.user).select_related("room__room_type")
     return render(request, "booking/my_bookings.html", {"bookings": bookings})
 
 
+def _get_next_url(request):
+    next_url = request.POST.get("next") or request.GET.get("next") or ""
+    if next_url and url_has_allowed_host_and_scheme(
+        next_url,
+        allowed_hosts={request.get_host()},
+        require_https=request.is_secure(),
+    ):
+        return next_url
+    return ""
+
+
 def register(request):
+    next_url = _get_next_url(request)
     if request.user.is_authenticated:
-        return redirect("booking:room_list")
+        return redirect(next_url or settings.LOGIN_REDIRECT_URL)
     if request.method == "POST":
         form = RegisterForm(request.POST)
         if form.is_valid():
             user = form.save()
             login(request, user)
             messages.success(request, "Реєстрація успішна.")
-            return redirect("booking:room_list")
+            return redirect(next_url or settings.LOGIN_REDIRECT_URL)
     else:
         form = RegisterForm()
-    return render(request, "registration/register.html", {"form": form})
+    return render(request, "registration/register.html", {"form": form, "next": next_url})
+
+
+def login_view(request):
+    next_url = _get_next_url(request)
+    if request.user.is_authenticated:
+        return redirect(next_url or settings.LOGIN_REDIRECT_URL)
+    if request.method == "POST":
+        form = AuthenticationForm(request, data=request.POST)
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+            messages.success(request, f"Вітаємо, {user.get_full_name() or user.username}!")
+            return redirect(next_url or settings.LOGIN_REDIRECT_URL)
+    else:
+        form = AuthenticationForm(request)
+    return render(request, "registration/login.html", {"form": form, "next": next_url})
+
+
+@require_POST
+def logout_view(request):
+    if request.user.is_authenticated:
+        logout(request)
+        messages.info(request, "Ви вийшли з акаунта.")
+    return redirect(settings.LOGOUT_REDIRECT_URL)
 
 
 def _parse_api_datetime(value):

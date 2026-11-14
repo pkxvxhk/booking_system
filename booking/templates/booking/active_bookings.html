@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Активні бронювання{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Активні бронювання</h1>
+<div class="row g-3">
+    {% for b in bookings %}
+        <div class="col-md-6 col-xl-4">
+            <div class="card shadow-sm h-100">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <h2 class="h5 mb-0">{{ b.room.name }}</h2>
+                        {% if b.start <= now %}
+                            <span class="badge text-bg-primary">триває зараз</span>
+                        {% else %}
+                            {% include "includes/status_badge.html" with booking=b %}
+                        {% endif %}
+                    </div>
+                    <p class="text-body-secondary mb-3">{{ b.room.room_type }}</p>
+                    <dl class="row mb-0 small">
+                        <dt class="col-5">Початок</dt>
+                        <dd class="col-7">{{ b.start|date:"d.m.Y H:i" }}</dd>
+                        <dt class="col-5">Завершення</dt>
+                        <dd class="col-7">{{ b.end|date:"d.m.Y H:i" }}</dd>
+                        <dt class="col-5">Гостей</dt>
+                        <dd class="col-7">{{ b.guests }}</dd>
+                        <dt class="col-5">Сплачено</dt>
+                        <dd class="col-7 fw-semibold">{{ b.total_price }}</dd>
+                    </dl>
+                </div>
+                <div class="card-footer bg-body">
+                    <a class="btn btn-sm btn-outline-primary" href="{{ b.get_absolute_url }}">Деталі</a>
+                </div>
+            </div>
+        </div>
+    {% empty %}
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <p class="text-body-secondary mb-3">Активних оплачених бронювань немає.</p>
+                    <a class="btn btn-primary" href="{% url 'booking:booking_create' %}">Забронювати</a>
+                    <a class="btn btn-outline-secondary" href="{% url 'booking:my_bookings' %}">Усі мої бронювання</a>
+                </div>
+            </div>
+        </div>
+    {% endfor %}
+</div>
+{% endblock %}

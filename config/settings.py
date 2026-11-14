@@ -132,7 +132,7 @@ DEFAULT_FROM_EMAIL = "booking@example.com"
 
 SITE_URL = "http://127.0.0.1:8000"
 
-LOGIN_URL = "login"
+LOGIN_URL = "booking:login"
 LOGIN_REDIRECT_URL = "booking:room_list"
 LOGOUT_REDIRECT_URL = "booking:room_list"
 
