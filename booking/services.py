@@ -55,6 +55,25 @@ def send_status_email(booking, request=None):
     send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [booking.email])
 
 
+def send_payment_email(booking, request=None):
+    detail_url = build_absolute_url(
+        reverse("booking:booking_detail", args=[booking.confirmation_token]),
+        request,
+    )
+    subject = f"Оплата бронювання #{booking.pk}"
+    message = (
+        f"Вітаємо, {booking.name}!\n\n"
+        f"Оплату бронювання отримано.\n\n"
+        f"Кімната/місце: {booking.room}\n"
+        f"Початок: {timezone.localtime(booking.start):%d.%m.%Y %H:%M}\n"
+        f"Завершення: {timezone.localtime(booking.end):%d.%m.%Y %H:%M}\n"
+        f"Сума: {booking.total_price}\n"
+        f"Дата оплати: {timezone.localtime(booking.paid_at):%d.%m.%Y %H:%M}\n\n"
+        f"Деталі: {detail_url}\n"
+    )
+    send_mail(subject, message, settings.DEFAULT_FROM_EMAIL, [booking.email])
+
+
 def create_booking(*, room, user, name, email, start, end, guests, request=None):
     with transaction.atomic():
         locked_room = Room.objects.select_for_update().get(pk=room.pk)
@@ -87,6 +106,18 @@ def change_status(booking, new_status, request=None, notify=True):
     if notify:
         send_status_email(booking, request)
     return booking
+
+
+def pay_booking(booking, request=None):
+    with transaction.atomic():
+        locked = Booking.objects.select_for_update().select_related("room").get(pk=booking.pk)
+        if not locked.can_be_paid:
+            raise ValidationError("Це бронювання неможливо оплатити.")
+        locked.is_paid = True
+        locked.paid_at = timezone.now()
+        locked.save(update_fields=["is_paid", "paid_at", "updated_at"])
+    send_payment_email(locked, request)
+    return locked
 
 
 def check_availability(room, start, end, exclude_booking_id=None):

@@ -15,6 +15,7 @@ from .models import Booking, Room, RoomType
 
 class BaseBookingTestCase(TestCase):
     def setUp(self):
+        self.user = User.objects.create_user("ivan", "ivan@example.com", "pass12345!")
         self.room_type = RoomType.objects.create(name="Переговорна")
         self.other_type = RoomType.objects.create(name="Зал")
         self.room = Room.objects.create(
@@ -30,6 +31,7 @@ class BaseBookingTestCase(TestCase):
     def make_booking(self, **kwargs):
         data = {
             "room": self.room,
+            "user": self.user,
             "name": "Ivan",
             "email": "ivan@example.com",
             "start": self.start,
@@ -81,6 +83,10 @@ class BookingModelTests(BaseBookingTestCase):
 
 
 class BookingFlowTests(BaseBookingTestCase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.user)
+
     def post_data(self, **kwargs):
         data = {
             "name": "Ivan",
@@ -123,10 +129,8 @@ class BookingFlowTests(BaseBookingTestCase):
         self.assertFalse(Booking.objects.exists())
 
     def test_logged_user_attached(self):
-        user = User.objects.create_user("u", "u@example.com", "pass12345!")
-        self.client.force_login(user)
         self.client.post(reverse("booking:booking_create"), self.post_data())
-        self.assertEqual(Booking.objects.get().user, user)
+        self.assertEqual(Booking.objects.get().user, self.user)
         response = self.client.get(reverse("booking:my_bookings"))
         self.assertContains(response, self.room.name)
 
@@ -136,6 +140,144 @@ class BookingFlowTests(BaseBookingTestCase):
         booking.refresh_from_db()
         self.assertEqual(booking.status, Booking.STATUS_CANCELLED)
         self.assertEqual(len(mail.outbox), 1)
+
+
+class AuthViewsTests(BaseBookingTestCase):
+    def test_login_success_redirects_to_next(self):
+        response = self.client.post(
+            reverse("booking:login"),
+            {"username": "ivan", "password": "pass12345!", "next": reverse("booking:my_bookings")},
+        )
+        self.assertRedirects(response, reverse("booking:my_bookings"))
+        self.assertEqual(int(self.client.session["_auth_user_id"]), self.user.pk)
+
+    def test_login_wrong_password(self):
+        response = self.client.post(reverse("booking:login"), {"username": "ivan", "password": "wrong"})
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("_auth_user_id", self.client.session)
+        self.assertTrue(response.context["form"].non_field_errors())
+
+    def test_login_ignores_external_next(self):
+        response = self.client.post(
+            reverse("booking:login"),
+            {"username": "ivan", "password": "pass12345!", "next": "https://evil.example.com/"},
+        )
+        self.assertRedirects(response, reverse("booking:room_list"))
+
+    def test_logout_requires_post(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("booking:logout")).status_code, 405)
+        response = self.client.post(reverse("booking:logout"))
+        self.assertRedirects(response, reverse("booking:room_list"))
+        self.assertNotIn("_auth_user_id", self.client.session)
+
+    def test_register_logs_in(self):
+        response = self.client.post(
+            reverse("booking:register"),
+            {
+                "username": "newuser",
+                "first_name": "New",
+                "email": "new@example.com",
+                "password1": "Str0ng-pass-123",
+                "password2": "Str0ng-pass-123",
+                "next": reverse("booking:booking_create"),
+            },
+        )
+        self.assertRedirects(response, reverse("booking:booking_create"))
+        self.assertTrue(User.objects.filter(username="newuser", email="new@example.com").exists())
+
+    def test_logged_in_user_redirected_from_login(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("booking:login"))
+        self.assertRedirects(response, reverse("booking:room_list"))
+
+
+class AccessTests(BaseBookingTestCase):
+    def test_anonymous_cannot_open_form(self):
+        response = self.client.get(reverse("booking:booking_create"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn(reverse("booking:login"), response["Location"])
+
+    def test_anonymous_cannot_create(self):
+        self.client.post(
+            reverse("booking:booking_create"),
+            {
+                "name": "Anon",
+                "email": "anon@example.com",
+                "room": self.room.pk,
+                "start": timezone.localtime(self.start).strftime("%Y-%m-%dT%H:%M"),
+                "end": timezone.localtime(self.end).strftime("%Y-%m-%dT%H:%M"),
+                "guests": 1,
+            },
+        )
+        self.assertFalse(Booking.objects.exists())
+
+    def test_other_user_cannot_see_or_cancel(self):
+        booking = self.make_booking()
+        other = User.objects.create_user("other", "o@example.com", "pass12345!")
+        self.client.force_login(other)
+        response = self.client.get(booking.get_absolute_url())
+        self.assertEqual(response.status_code, 404)
+        self.client.post(reverse("booking:booking_cancel", args=[booking.confirmation_token]))
+        booking.refresh_from_db()
+        self.assertEqual(booking.status, Booking.STATUS_PENDING)
+
+    def test_staff_can_see_any(self):
+        booking = self.make_booking()
+        staff = User.objects.create_user("staff", "s@example.com", "pass12345!", is_staff=True)
+        self.client.force_login(staff)
+        self.assertEqual(self.client.get(booking.get_absolute_url()).status_code, 200)
+
+
+class PaymentTests(BaseBookingTestCase):
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.user)
+
+    def test_pay_and_active_list(self):
+        booking = self.make_booking()
+        unpaid = self.make_booking(start=self.end, end=self.end + timedelta(hours=1))
+        response = self.client.get(booking.get_absolute_url())
+        self.assertContains(response, reverse("booking:booking_pay", args=[booking.confirmation_token]))
+        self.client.post(reverse("booking:booking_pay", args=[booking.confirmation_token]))
+        booking.refresh_from_db()
+        self.assertTrue(booking.is_paid)
+        self.assertIsNotNone(booking.paid_at)
+        self.assertEqual(len(mail.outbox), 1)
+        response = self.client.get(reverse("booking:active_bookings"))
+        self.assertEqual(list(response.context["bookings"]), [booking])
+        self.assertNotIn(unpaid, list(response.context["bookings"]))
+
+    def test_cannot_pay_twice_or_cancelled(self):
+        booking = self.make_booking()
+        services.pay_booking(booking)
+        with self.assertRaises(ValidationError):
+            services.pay_booking(booking)
+        other = self.make_booking(start=self.end, end=self.end + timedelta(hours=1))
+        services.change_status(other, Booking.STATUS_CANCELLED, notify=False)
+        with self.assertRaises(ValidationError):
+            services.pay_booking(other)
+
+    def test_cancelled_paid_not_active(self):
+        booking = self.make_booking()
+        services.pay_booking(booking)
+        services.change_status(booking, Booking.STATUS_CANCELLED, notify=False)
+        response = self.client.get(reverse("booking:active_bookings"))
+        self.assertEqual(list(response.context["bookings"]), [])
+
+    def test_other_user_cannot_pay(self):
+        booking = self.make_booking()
+        other = User.objects.create_user("other", "o@example.com", "pass12345!")
+        self.client.force_login(other)
+        response = self.client.post(reverse("booking:booking_pay", args=[booking.confirmation_token]))
+        self.assertEqual(response.status_code, 404)
+        booking.refresh_from_db()
+        self.assertFalse(booking.is_paid)
+
+    def test_active_requires_login(self):
+        self.client.logout()
+        response = self.client.get(reverse("booking:active_bookings"))
+        self.assertEqual(response.status_code, 302)
 
 
 class ServiceTests(BaseBookingTestCase):
@@ -229,3 +371,14 @@ class AdminTests(BaseBookingTestCase):
         booking.refresh_from_db()
         self.assertEqual(booking.status, Booking.STATUS_CONFIRMED)
         self.assertEqual(len(mail.outbox), 1)
+
+    def test_admin_mark_paid_action(self):
+        admin = User.objects.create_superuser("admin", "a@example.com", "pass12345!")
+        self.client.force_login(admin)
+        booking = self.make_booking()
+        self.client.post(
+            reverse("admin:booking_booking_changelist"),
+            {"action": "mark_paid", "_selected_action": [booking.pk]},
+        )
+        booking.refresh_from_db()
+        self.assertTrue(booking.is_paid)

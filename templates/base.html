@@ -30,6 +30,10 @@
                 </li>
                 {% if user.is_authenticated %}
                     <li class="nav-item">
+                        <a class="nav-link{% if url_name == 'active_bookings' %} active{% endif %}"
+                           href="{% url 'booking:active_bookings' %}">Активні бронювання</a>
+                    </li>
+                    <li class="nav-item">
                         <a class="nav-link{% if url_name == 'my_bookings' %} active{% endif %}"
                            href="{% url 'booking:my_bookings' %}">Мої бронювання</a>
                     </li>
@@ -42,13 +46,14 @@
                         <button class="btn btn-outline-secondary dropdown-toggle" type="button" data-bs-toggle="dropdown"
                                 aria-expanded="false">{{ user.username }}</button>
                         <ul class="dropdown-menu dropdown-menu-lg-end">
+                            <li><a class="dropdown-item" href="{% url 'booking:active_bookings' %}">Активні бронювання</a></li>
                             <li><a class="dropdown-item" href="{% url 'booking:my_bookings' %}">Мої бронювання</a></li>
                             {% if user.is_staff %}
                                 <li><a class="dropdown-item" href="{% url 'admin:index' %}">Адмін-панель</a></li>
                             {% endif %}
                             <li><hr class="dropdown-divider"></li>
                             <li>
-                                <form action="{% url 'logout' %}" method="post">
+                                <form action="{% url 'booking:logout' %}" method="post">
                                     {% csrf_token %}
                                     <button type="submit" class="dropdown-item">Вийти</button>
                                 </form>
@@ -56,7 +61,7 @@
                         </ul>
                     </div>
                 {% else %}
-                    <a class="btn btn-outline-secondary" href="{% url 'login' %}">Увійти</a>
+                    <a class="btn btn-outline-secondary" href="{% url 'booking:login' %}">Увійти</a>
                     <a class="btn btn-link" href="{% url 'booking:register' %}">Реєстрація</a>
                 {% endif %}
             </div>

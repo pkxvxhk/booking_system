@@ -74,6 +74,9 @@ class BookingQuerySet(models.QuerySet):
     def active(self):
         return self.filter(status__in=Booking.BLOCKING_STATUSES)
 
+    def paid_active(self):
+        return self.active().filter(is_paid=True, end__gt=timezone.now())
+
     def overlapping(self, room, start, end):
         return self.active().filter(room=room, start__lt=end, end__gt=start)
 
@@ -110,6 +113,8 @@ class Booking(models.Model):
     guests = models.PositiveIntegerField("Кількість гостей", default=1)
     status = models.CharField("Статус", max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING)
     email_confirmed = models.BooleanField("Підтверджено через e-mail", default=False)
+    is_paid = models.BooleanField("Оплачено", default=False)
+    paid_at = models.DateTimeField("Дата оплати", null=True, blank=True)
     confirmation_token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
     total_price = models.DecimalField("Вартість", max_digits=12, decimal_places=2, default=Decimal("0.00"))
     created_at = models.DateTimeField("Створено", auto_now_add=True)
@@ -136,6 +141,10 @@ class Booking(models.Model):
     @property
     def is_blocking(self):
         return self.status in self.BLOCKING_STATUSES
+
+    @property
+    def can_be_paid(self):
+        return not self.is_paid and self.is_blocking and self.end > timezone.now()
 
     def calculate_price(self):
         if not (self.room_id and self.start and self.end):

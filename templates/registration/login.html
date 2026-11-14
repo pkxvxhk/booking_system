@@ -12,11 +12,11 @@
                     {% for field in form %}
                         {% include "includes/form_field.html" with field=field %}
                     {% endfor %}
-                    <input type="hidden" name="next" value="{{ next }}">
+                    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
                     <button type="submit" class="btn btn-primary w-100">Увійти</button>
                 </form>
                 <p class="text-center mt-3 mb-0">
-                    <a href="{% url 'booking:register' %}">Немає акаунта? Зареєструватися</a>
+                    <a href="{% url 'booking:register' %}{% if next %}?next={{ next|urlencode }}{% endif %}">Немає акаунта? Зареєструватися</a>
                 </p>
             </div>
         </div>
