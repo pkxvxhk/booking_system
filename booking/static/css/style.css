@@ -1,3 +1,7 @@
+.table > thead th {
+    background-color: var(--bs-tertiary-bg);
+}
+
 .availability-table th,
 .availability-table td {
     min-width: 2.25rem;
@@ -6,4 +10,40 @@
 .availability-table td:first-child,
 .availability-table th:first-child {
     min-width: 10rem;
+}
+
+.hero {
+    background:
+        radial-gradient(circle at 15% 20%, rgba(var(--bs-primary-rgb), 0.18), transparent 55%),
+        radial-gradient(circle at 85% 80%, rgba(var(--bs-info-rgb), 0.14), transparent 50%),
+        var(--bs-body-bg);
+}
+
+.room-card {
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.room-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--bs-box-shadow) !important;
+}
+
+.room-icon {
+    width: 3rem;
+    height: 3rem;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .room-card {
+        transition: none;
+    }
+
+    .room-card:hover {
+        transform: none;
+    }
 }

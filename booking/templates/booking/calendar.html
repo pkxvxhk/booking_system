@@ -35,7 +35,7 @@
 <div class="card shadow-sm">
     <div class="table-responsive">
         <table class="table table-bordered table-sm align-middle text-center mb-0 availability-table">
-            <thead class="table-light">
+            <thead>
             <tr>
                 <th class="text-start">Кімната/місце</th>
                 {% for day in calendar.days %}<th>{{ day|date:"d" }}</th>{% endfor %}
@@ -46,7 +46,7 @@
                 <tr>
                     <td class="text-start text-nowrap"><a href="{{ row.room.get_absolute_url }}">{{ row.room.name }}</a></td>
                     {% for cell in row.cells %}
-                        <td class="{% if cell.status == 'free' %}table-success{% elif cell.status == 'partial' %}table-warning{% else %}table-danger{% endif %}"
+                        <td class="{% if cell.status == 'free' %}bg-success-subtle text-success-emphasis{% elif cell.status == 'partial' %}bg-warning-subtle text-warning-emphasis{% else %}bg-danger-subtle text-danger-emphasis{% endif %}"
                             title="{% for s, e in cell.busy %}{{ s|date:'H:i' }}-{{ e|date:'H:i' }} {% empty %}вільно{% endfor %}">
                             {% if cell.status == "free" %}
                                 <a class="text-decoration-none" href="{% url 'booking:booking_create' %}?room={{ row.room.pk }}">+</a>
